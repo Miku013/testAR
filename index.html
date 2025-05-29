@@ -26,9 +26,24 @@
     input {
       width: 100px;
     }
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-gap: 5px;
+      text-align: center;
+    }
     #controls button {
-      display: inline-block;
-      margin: 2px;
+      width: 50px;
+      height: 50px;
+      font-size: 18px;
     }
   </style>
 </head>
@@ -38,26 +53,26 @@
     <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
     <label>高さ (cm): <input type="number" id="height" value="70" /></label>
     <button id="placeBtn">表示</button>
-    <div id="controls">
-      <button onclick="moveCube('left')">←</button>
-      <button onclick="moveCube('right')">→</button>
-      <button onclick="moveCube('up')">↑</button>
-      <button onclick="moveCube('down')">↓</button>
-      <button onclick="moveCube('rise')">UP</button>
-      <button onclick="moveCube('fall')">DOWN</button>
-      <button onclick="rotateCube('x+')">X+</button>
-      <button onclick="rotateCube('x-')">X-</button>
-    </div>
   </div>
 
+  <div id="controls">
+    <button id="up">↑</button>
+    <button id="forward">↥</button>
+    <button id="rotateX">⟳</button>
+    <button id="left">←</button>
+    <button id="down">↓</button>
+    <button id="right">→</button>
+    <button id="backward">↧</button>
+  </div>
+
+  <!-- Three.js本体 -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+
+  <!-- Three.js ARButton（モジュール版） -->
   <script type="module">
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
-
-    const moveStep = 0.05;
-    const rotateStep = THREE.MathUtils.degToRad(5);
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
@@ -89,6 +104,8 @@
         renderer.render(scene, camera);
       });
 
+      setupControlButtons();
+
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -106,24 +123,31 @@
       scene.add(cube);
     }
 
-    window.moveCube = function (direction) {
-      if (!cube) return;
-      switch (direction) {
-        case 'left': cube.position.x -= moveStep; break;
-        case 'right': cube.position.x += moveStep; break;
-        case 'up': cube.position.z -= moveStep; break;
-        case 'down': cube.position.z += moveStep; break;
-        case 'rise': cube.position.y += moveStep; break;
-        case 'fall': if (cube.position.y - moveStep > 0) cube.position.y -= moveStep; break;
-      }
-    }
+    const moveStep = 0.05;
+    const rotateStep = THREE.MathUtils.degToRad(5);
 
-    window.rotateCube = function (direction) {
-      if (!cube) return;
-      switch (direction) {
-        case 'x+': cube.rotation.x += rotateStep; break;
-        case 'x-': cube.rotation.x -= rotateStep; break;
-      }
+    function setupControlButtons() {
+      document.getElementById('up').addEventListener('click', () => {
+        if (cube) cube.position.y += moveStep;
+      });
+      document.getElementById('down').addEventListener('click', () => {
+        if (cube) cube.position.y -= moveStep; // 床制限なし
+      });
+      document.getElementById('left').addEventListener('click', () => {
+        if (cube) cube.position.x -= moveStep;
+      });
+      document.getElementById('right').addEventListener('click', () => {
+        if (cube) cube.position.x += moveStep;
+      });
+      document.getElementById('forward').addEventListener('click', () => {
+        if (cube) cube.position.z -= moveStep;
+      });
+      document.getElementById('backward').addEventListener('click', () => {
+        if (cube) cube.position.z += moveStep;
+      });
+      document.getElementById('rotateX').addEventListener('click', () => {
+        if (cube) cube.rotation.x += rotateStep;
+      });
     }
   </script>
 </body>
