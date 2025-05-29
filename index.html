@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック表示 + キーボード操作</title>
+  <title>AR家具ブロック表示</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -18,6 +18,7 @@
       padding: 10px;
       border-radius: 8px;
       z-index: 10;
+      max-width: 160px;
     }
     label, input {
       display: block;
@@ -25,6 +26,26 @@
     }
     input {
       width: 100px;
+    }
+    #controls {
+      margin-top: 10px;
+      user-select: none;
+    }
+    #controls button {
+      width: 40px;
+      height: 40px;
+      margin: 2px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #move-row {
+      display: flex;
+      justify-content: center;
+    }
+    #rotate-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -34,16 +55,37 @@
     <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
     <label>高さ (cm): <input type="number" id="height" value="70" /></label>
     <button id="placeBtn">表示</button>
-    <p>キーボード操作: ←→ ↑↓ = X,Z移動, W/S=Y移動, A/D=横回転(X軸)</p>
+
+    <div id="controls">
+      <div id="move-row">
+        <button id="move-up">↑</button>
+      </div>
+      <div id="move-row">
+        <button id="move-left">←</button>
+        <button id="move-down">↓</button>
+        <button id="move-right">→</button>
+      </div>
+      <div id="move-row">
+        <button id="move-forward">前</button>
+        <button id="move-back">後</button>
+      </div>
+      <div id="rotate-row">
+        <button id="rotate-x-pos">⟳X+</button>
+        <button id="rotate-x-neg">⟲X-</button>
+      </div>
+    </div>
   </div>
 
-  <!-- Three.js本体（非モジュール版） -->
+  <!-- Three.js本体 -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <!-- ARButton（モジュール版、importで使う） -->
+  <!-- ARButton（モジュール版） -->
   <script type="module">
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
+
+    const moveStep = 0.05;
+    const rotateStep = THREE.MathUtils.degToRad(5);
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
@@ -65,26 +107,31 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // ARボタン追加
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // アニメーションループ
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
-
-      // キーボードイベント
-      window.addEventListener('keydown', onKeyDown);
 
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
+
+      // 移動・回転ボタンイベント登録
+      document.getElementById('move-up').addEventListener('click', () => moveCube('up'));
+      document.getElementById('move-down').addEventListener('click', () => moveCube('down'));
+      document.getElementById('move-left').addEventListener('click', () => moveCube('left'));
+      document.getElementById('move-right').addEventListener('click', () => moveCube('right'));
+      document.getElementById('move-forward').addEventListener('click', () => moveCube('forward'));
+      document.getElementById('move-back').addEventListener('click', () => moveCube('back'));
+      document.getElementById('rotate-x-pos').addEventListener('click', () => rotateCube('x+'));
+      document.getElementById('rotate-x-neg').addEventListener('click', () => rotateCube('x-'));
     }
 
     function placeBox(width, height, depth) {
@@ -97,43 +144,36 @@
       scene.add(cube);
     }
 
-    // キーボードによる移動・回転量
-    const moveStep = 0.05;
-    const rotateStep = THREE.MathUtils.degToRad(5); // 5度ずつ回転
-
-    function onKeyDown(event) {
+    function moveCube(direction) {
       if (!cube) return;
 
-      switch(event.key) {
-        case 'ArrowLeft':  // 左に移動 (X軸 -)
-          cube.position.x -= moveStep;
-          break;
-        case 'ArrowRight': // 右に移動 (X軸 +)
-          cube.position.x += moveStep;
-          break;
-        case 'ArrowUp':    // 手前に移動 (Z軸 -)
-          cube.position.z -= moveStep;
-          break;
-        case 'ArrowDown':  // 奥に移動 (Z軸 +)
-          cube.position.z += moveStep;
-          break;
-        case 'w': // 上に移動 (Y軸 +)
-        case 'W':
+      switch (direction) {
+        case 'up':
           cube.position.y += moveStep;
           break;
-        case 's': // 下に移動 (Y軸 -)
-        case 'S':
-          if (cube.position.y - moveStep > 0) cube.position.y -= moveStep; // 床より下に行かないよう制限
+        case 'down':
+          if (cube.position.y - moveStep > 0) cube.position.y -= moveStep;
           break;
-        case 'a': // 左に横軸回転 (X軸回転 +)
-        case 'A':
-          cube.rotation.x += rotateStep;
+        case 'left':
+          cube.position.x -= moveStep;
           break;
-        case 'd': // 右に横軸回転 (X軸回転 -)
-        case 'D':
-          cube.rotation.x -= rotateStep;
+        case 'right':
+          cube.position.x += moveStep;
+          break;
+        case 'forward':
+          cube.position.z -= moveStep;
+          break;
+        case 'back':
+          cube.position.z += moveStep;
           break;
       }
+    }
+
+    function rotateCube(axis) {
+      if (!cube) return;
+
+      if (axis === 'x+') cube.rotation.x += rotateStep;
+      else if (axis === 'x-') cube.rotation.x -= rotateStep;
     }
   </script>
 </body>
