@@ -2,99 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック 移動＋回転対応</title>
+  <title>AR家具ブロック表示</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script type="module">
-    import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
-    import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
-
-    let camera, scene, renderer, cube;
-
-    init();
-
-    function init() {
-      // UIイベント登録
-      document.getElementById('placeBtn').addEventListener('click', () => {
-        const w = parseFloat(document.getElementById('width').value) / 100;
-        const d = parseFloat(document.getElementById('depth').value) / 100;
-        const h = parseFloat(document.getElementById('height').value) / 100;
-        placeBox(w, h, d);
-      });
-
-      scene = new THREE.Scene();
-
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
-
-      // シンプルにARボタンを追加（hit-testなし）
-      document.body.appendChild(ARButton.createButton(renderer));
-
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      light.position.set(0.5, 1, 0.25);
-      scene.add(light);
-
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
-
-      window.addEventListener('resize', onWindowResize);
-
-      setupMoveAndRotateButtons();
-    }
-
-    function placeBox(width, height, depth) {
-      if (cube) scene.remove(cube);
-
-      const geometry = new THREE.BoxGeometry(width, height, depth);
-      const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
-      cube = new THREE.Mesh(geometry, material);
-      cube.position.set(0, height / 2, -1);
-      cube.rotation.set(0, 0, 0);
-      scene.add(cube);
-    }
-
-    function setupMoveAndRotateButtons() {
-      const moveStep = 0.05; // 5cm
-      const rotateStep = THREE.MathUtils.degToRad(10); // 10度
-
-      document.getElementById('upBtn').addEventListener('click', () => {
-        if (cube) cube.position.y += moveStep;
-      });
-      document.getElementById('downBtn').addEventListener('click', () => {
-        if (cube) cube.position.y = Math.max(0, cube.position.y - moveStep);
-      });
-      document.getElementById('leftBtn').addEventListener('click', () => {
-        if (cube) cube.position.x -= moveStep;
-      });
-      document.getElementById('rightBtn').addEventListener('click', () => {
-        if (cube) cube.position.x += moveStep;
-      });
-      document.getElementById('forwardBtn').addEventListener('click', () => {
-        if (cube) cube.position.z -= moveStep;
-      });
-      document.getElementById('backwardBtn').addEventListener('click', () => {
-        if (cube) cube.position.z += moveStep;
-      });
-
-      document.getElementById('rotateUpBtn').addEventListener('click', () => {
-        if (cube) cube.rotation.x -= rotateStep;
-      });
-      document.getElementById('rotateDownBtn').addEventListener('click', () => {
-        if (cube) cube.rotation.x += rotateStep;
-      });
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-  </script>
-
   <style>
     body {
       margin: 0;
@@ -117,34 +26,6 @@
     input {
       width: 100px;
     }
-
-    #moveControls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      border-radius: 8px;
-      z-index: 20;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      width: 360px;
-    }
-    #moveControls button {
-      font-size: 18px;
-      padding: 8px 14px;
-      cursor: pointer;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      background-color: #f0f0f0;
-      user-select: none;
-    }
-    #moveControls button:active {
-      background-color: #ddd;
-    }
   </style>
 </head>
 <body>
@@ -153,17 +34,100 @@
     <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
     <label>高さ (cm): <input type="number" id="height" value="70" /></label>
     <button id="placeBtn">表示</button>
+    <p>操作: 矢印キー（左右上下）= XY移動, W/S = 前後移動, Q/E = 回転</p>
   </div>
 
-  <div id="moveControls">
-    <button id="upBtn">↑</button>
-    <button id="downBtn">↓</button>
-    <button id="leftBtn">←</button>
-    <button id="rightBtn">→</button>
-    <button id="forwardBtn">前</button>
-    <button id="backwardBtn">後</button>
-    <button id="rotateUpBtn">回転↑</button>
-    <button id="rotateDownBtn">回転↓</button>
-  </div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <script type="module">
+    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
+
+    let camera, scene, renderer, cube;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      init();
+    });
+
+    function init() {
+      document.getElementById('placeBtn').addEventListener('click', () => {
+        const w = parseFloat(document.getElementById('width').value) / 100;
+        const d = parseFloat(document.getElementById('depth').value) / 100;
+        const h = parseFloat(document.getElementById('height').value) / 100;
+        placeBox(w, h, d);
+      });
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
+
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // キーボードでの操作
+      window.addEventListener('keydown', (event) => {
+        if (!cube) return; // キューブがなければ無視
+
+        const step = 0.05; // 移動量(m)
+        const rotStep = THREE.MathUtils.degToRad(5); // 回転量(ラジアン)
+
+        switch(event.key) {
+          case 'ArrowUp':
+            cube.position.y += step; // 上
+            break;
+          case 'ArrowDown':
+            cube.position.y -= step; // 下
+            break;
+          case 'ArrowLeft':
+            cube.position.x -= step; // 左
+            break;
+          case 'ArrowRight':
+            cube.position.x += step; // 右
+            break;
+          case 'w':
+          case 'W':
+            cube.position.z -= step; // 手前に移動
+            break;
+          case 's':
+          case 'S':
+            cube.position.z += step; // 奥に移動
+            break;
+          case 'q':
+          case 'Q':
+            cube.rotation.y += rotStep; // 左回転
+            break;
+          case 'e':
+          case 'E':
+            cube.rotation.y -= rotStep; // 右回転
+            break;
+        }
+      });
+    }
+
+    function placeBox(width, height, depth) {
+      if (cube) scene.remove(cube);
+
+      const geometry = new THREE.BoxGeometry(width, height, depth);
+      const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
+      cube = new THREE.Mesh(geometry, material);
+      cube.position.set(0, height / 2, -1);
+      scene.add(cube);
+    }
+  </script>
 </body>
 </html>
