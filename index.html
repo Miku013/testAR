@@ -2,16 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック 十字キー移動対応</title>
+  <title>AR家具ブロック 移動＋回転対応</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
     import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
-    let hitTestSource = null;
-    let localSpace = null;
-    let xrSession = null;
 
     init();
 
@@ -24,64 +21,45 @@
         placeBox(w, h, d);
       });
 
-      // シーンとカメラ
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera();
 
-      // レンダラー
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // ARボタン
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+      // シンプルにARボタンを追加（hit-testなし）
+      document.body.appendChild(ARButton.createButton(renderer));
 
-      // ライト
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // ARセッション開始時のセットアップ
-      renderer.xr.addEventListener('sessionstart', async () => {
-        xrSession = renderer.xr.getSession();
-
-        // Hit test用ローカルスペース取得
-        localSpace = await xrSession.requestReferenceSpace('local');
-
-        // Hit testソースをリクエスト
-        const viewerSpace = await xrSession.requestReferenceSpace('viewer');
-        hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
-      });
-
-      // セッション終了時にリセット
-      renderer.xr.addEventListener('sessionend', () => {
-        hitTestSource = null;
-        localSpace = null;
-        xrSession = null;
-      });
-
-      // アニメーションループ
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
 
-      setupMoveButtons();
+      window.addEventListener('resize', onWindowResize);
+
+      setupMoveAndRotateButtons();
     }
 
-    // 家具ブロックを設置
     function placeBox(width, height, depth) {
       if (cube) scene.remove(cube);
+
       const geometry = new THREE.BoxGeometry(width, height, depth);
       const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
       cube = new THREE.Mesh(geometry, material);
-      cube.position.set(0, height / 2, -1); // 床上に配置（Zはカメラ前方約1m）
+      cube.position.set(0, height / 2, -1);
+      cube.rotation.set(0, 0, 0);
       scene.add(cube);
     }
 
-    // 移動用ボタン設定
-    function setupMoveButtons() {
-      const moveStep = 0.05; // 5cmずつ
+    function setupMoveAndRotateButtons() {
+      const moveStep = 0.05; // 5cm
+      const rotateStep = THREE.MathUtils.degToRad(10); // 10度
 
       document.getElementById('upBtn').addEventListener('click', () => {
         if (cube) cube.position.y += moveStep;
@@ -101,6 +79,19 @@
       document.getElementById('backwardBtn').addEventListener('click', () => {
         if (cube) cube.position.z += moveStep;
       });
+
+      document.getElementById('rotateUpBtn').addEventListener('click', () => {
+        if (cube) cube.rotation.x -= rotateStep;
+      });
+      document.getElementById('rotateDownBtn').addEventListener('click', () => {
+        if (cube) cube.rotation.x += rotateStep;
+      });
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     }
   </script>
 
@@ -140,7 +131,7 @@
       gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
-      width: 280px;
+      width: 360px;
     }
     #moveControls button {
       font-size: 18px;
@@ -171,6 +162,8 @@
     <button id="rightBtn">→</button>
     <button id="forwardBtn">前</button>
     <button id="backwardBtn">後</button>
+    <button id="rotateUpBtn">回転↑</button>
+    <button id="rotateDownBtn">回転↓</button>
   </div>
 </body>
 </html>
