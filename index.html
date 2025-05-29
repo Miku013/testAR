@@ -65,10 +65,7 @@
     <button id="backward">↧</button>
   </div>
 
-  <!-- Three.js本体 -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-
-  <!-- Three.js ARButton（モジュール版） -->
   <script type="module">
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
@@ -116,11 +113,19 @@
     function placeBox(width, height, depth) {
       if (cube) scene.remove(cube);
 
+      // メインブロック作成
       const geometry = new THREE.BoxGeometry(width, height, depth);
       const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
       cube = new THREE.Mesh(geometry, material);
-      cube.position.set(0, height / 2, -1);
+      cube.position.set(0, height / 2 - 0.3, -1); // -0.3mだけ下げて表示
       scene.add(cube);
+
+      // 棒（目安 10cm 横向き）追加
+      const barGeometry = new THREE.BoxGeometry(0.1, 0.01, 0.01); // 幅10cm, 高さ・奥行1cm
+      const barMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const bar = new THREE.Mesh(barGeometry, barMaterial);
+      bar.position.set(0, height / 2 + 0.05, 0); // 上の方に少しずらして見やすく
+      cube.add(bar); // cube の子にすることで一体で移動・回転
     }
 
     const moveStep = 0.05;
@@ -131,7 +136,7 @@
         if (cube) cube.position.y += moveStep;
       });
       document.getElementById('down').addEventListener('click', () => {
-        if (cube) cube.position.y -= moveStep; // 床制限なし
+        if (cube) cube.position.y -= moveStep;
       });
       document.getElementById('left').addEventListener('click', () => {
         if (cube) cube.position.x -= moveStep;
