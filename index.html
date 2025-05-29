@@ -10,16 +10,16 @@
       overflow: hidden;
       font-family: sans-serif;
     }
-    #ui {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      border-radius: 8px;
-      z-index: 10;
-      max-width: 160px;
-    }
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 8px;
+  z-index: 1000;  /* ここを上げる */
+}
+
     label, input {
       display: block;
       margin-bottom: 5px;
@@ -100,10 +100,12 @@
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
+renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+renderer.domElement.style.pointerEvents = 'auto';  // UI操作したいならautoのまま
+document.body.appendChild(renderer.domElement);
+
 
       const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
       document.body.appendChild(arButton);
