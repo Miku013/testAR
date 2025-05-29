@@ -76,16 +76,14 @@
     </div>
   </div>
 
-  <!-- Three.js本体 -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <!-- ARButton（モジュール版） -->
   <script type="module">
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
-
     const moveStep = 0.05;
     const rotateStep = THREE.MathUtils.degToRad(5);
+    let xrSession = null; // ARセッション状態
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
@@ -107,7 +105,24 @@
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+      const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+      document.body.appendChild(arButton);
+
+      arButton.addEventListener('click', () => {
+        // ARButtonのクリックでセッションが開始されるのでここにフックもできますが、WebXR APIでセッション開始を監視したほうが確実
+      });
+
+      renderer.xr.addEventListener('sessionstart', () => {
+        console.log('AR session started');
+        xrSession = renderer.xr.getSession();
+        // ARセッション開始時にキューブがなければ自動生成（幅100cm/高さ70cm/奥行60cm）
+        if (!cube) placeBox(1.0, 0.7, 0.6);
+      });
+
+      renderer.xr.addEventListener('sessionend', () => {
+        console.log('AR session ended');
+        xrSession = null;
+      });
 
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
@@ -146,6 +161,10 @@
 
     function moveCube(direction) {
       if (!cube) return;
+      if (!xrSession) {
+        alert('ARセッション中のみ操作可能です');
+        return;
+      }
 
       switch (direction) {
         case 'up':
@@ -171,7 +190,10 @@
 
     function rotateCube(axis) {
       if (!cube) return;
-
+      if (!xrSession) {
+        alert('ARセッション中のみ操作可能です');
+        return;
+      }
       if (axis === 'x+') cube.rotation.x += rotateStep;
       else if (axis === 'x-') cube.rotation.x -= rotateStep;
     }
