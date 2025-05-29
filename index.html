@@ -141,7 +141,7 @@
         // 平面Y=キューブの高さで位置を計算して移動させる方法の一例
         // レイと平面の交差点を計算
         const planeY = cube.position.y;
-        const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), planeY);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), planeY);
         const intersectPoint = new THREE.Vector3();
         raycaster.ray.intersectPlane(plane, intersectPoint);
 
