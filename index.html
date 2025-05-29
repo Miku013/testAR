@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>AR家具ブロック表示</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module">
+    import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
+    import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
+
+    let camera, scene, renderer, cube;
+    
+    init();
+
+    function init() {
+      // UIイベント登録
+      document.getElementById('placeBtn').addEventListener('click', () => {
+        const w = parseFloat(document.getElementById('width').value) / 100;
+        const d = parseFloat(document.getElementById('depth').value) / 100;
+        const h = parseFloat(document.getElementById('height').value) / 100;
+        placeBox(w, h, d);
+      });
+
+      // シーンとカメラ
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      // レンダラー
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // ARボタン追加
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      // ライト
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
+
+      // アニメーションループ
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+    }
+
+    function placeBox(width, height, depth) {
+      // 既存のブロックを削除
+      if (cube) scene.remove(cube);
+
+      const geometry = new THREE.BoxGeometry(width, height, depth);
+      const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
+      cube = new THREE.Mesh(geometry, material);
+      cube.position.set(0, height / 2, -1); // 床上に配置
+      scene.add(cube);
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+    }
+    label, input {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <label>幅 (cm): <input type="number" id="width" value="100" /></label>
+    <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
+    <label>高さ (cm): <input type="number" id="height" value="70" /></label>
+    <button id="placeBtn">表示</button>
+  </div>
+</body>
+</html>
