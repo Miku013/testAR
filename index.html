@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック表示（モバイルドラッグ対応）</title>
+  <title>AR家具ブロック表示</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -26,6 +26,10 @@
     input {
       width: 100px;
     }
+    #controls button {
+      display: inline-block;
+      margin: 2px;
+    }
   </style>
 </head>
 <body>
@@ -34,6 +38,16 @@
     <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
     <label>高さ (cm): <input type="number" id="height" value="70" /></label>
     <button id="placeBtn">表示</button>
+    <div id="controls">
+      <button onclick="moveCube('left')">←</button>
+      <button onclick="moveCube('right')">→</button>
+      <button onclick="moveCube('up')">↑</button>
+      <button onclick="moveCube('down')">↓</button>
+      <button onclick="moveCube('rise')">UP</button>
+      <button onclick="moveCube('fall')">DOWN</button>
+      <button onclick="rotateCube('x+')">X+</button>
+      <button onclick="rotateCube('x-')">X-</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
@@ -41,10 +55,9 @@
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
-    let raycaster = new THREE.Raycaster();
-    let dragOffset = new THREE.Vector3();
-    let isDragging = false;
-    let dragTouchId = null;
+
+    const moveStep = 0.05;
+    const rotateStep = THREE.MathUtils.degToRad(5);
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
@@ -72,20 +85,14 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // タッチイベントを登録（WebXRセッション中でも動作）
-      renderer.domElement.addEventListener('touchstart', onTouchStart, false);
-      renderer.domElement.addEventListener('touchmove', onTouchMove, false);
-      renderer.domElement.addEventListener('touchend', onTouchEnd, false);
-      renderer.domElement.addEventListener('touchcancel', onTouchEnd, false);
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
 
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
       });
     }
 
@@ -99,68 +106,23 @@
       scene.add(cube);
     }
 
-    function getTouchPositionInThree(touch) {
-      // タッチ位置をNDCに変換
-      const x = (touch.clientX / window.innerWidth) * 2 - 1;
-      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
-      return new THREE.Vector2(x, y);
-    }
-
-    function onTouchStart(event) {
+    window.moveCube = function (direction) {
       if (!cube) return;
-
-      for (let i = 0; i < event.changedTouches.length; i++) {
-        const touch = event.changedTouches[i];
-        const pos = getTouchPositionInThree(touch);
-
-        raycaster.setFromCamera(pos, camera);
-        const intersects = raycaster.intersectObject(cube);
-
-        if (intersects.length > 0) {
-          isDragging = true;
-          dragTouchId = touch.identifier;
-
-          // ドラッグ開始時の差分オフセットを計算
-          const intersectPoint = intersects[0].point;
-          dragOffset.copy(intersectPoint).sub(cube.position);
-          break;
-        }
+      switch (direction) {
+        case 'left': cube.position.x -= moveStep; break;
+        case 'right': cube.position.x += moveStep; break;
+        case 'up': cube.position.z -= moveStep; break;
+        case 'down': cube.position.z += moveStep; break;
+        case 'rise': cube.position.y += moveStep; break;
+        case 'fall': if (cube.position.y - moveStep > 0) cube.position.y -= moveStep; break;
       }
     }
 
-    function onTouchMove(event) {
-      if (!isDragging) return;
-
-      for (let i = 0; i < event.changedTouches.length; i++) {
-        const touch = event.changedTouches[i];
-        if (touch.identifier !== dragTouchId) continue;
-
-        const pos = getTouchPositionInThree(touch);
-        raycaster.setFromCamera(pos, camera);
-
-        // 平面Y=キューブの高さで位置を計算して移動させる方法の一例
-        // レイと平面の交差点を計算
-        const planeY = cube.position.y;
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), planeY);
-        const intersectPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersectPoint);
-
-        if (intersectPoint) {
-          cube.position.copy(intersectPoint.sub(dragOffset));
-        }
-
-        break;
-      }
-    }
-
-    function onTouchEnd(event) {
-      for (let i = 0; i < event.changedTouches.length; i++) {
-        const touch = event.changedTouches[i];
-        if (touch.identifier === dragTouchId) {
-          isDragging = false;
-          dragTouchId = null;
-          break;
-        }
+    window.rotateCube = function (direction) {
+      if (!cube) return;
+      switch (direction) {
+        case 'x+': cube.rotation.x += rotateStep; break;
+        case 'x-': cube.rotation.x -= rotateStep; break;
       }
     }
   </script>
