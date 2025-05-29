@@ -36,9 +36,13 @@
     <button id="placeBtn">表示</button>
   </div>
 
+  <!-- Three.js本体 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <!-- ARButton（非モジュール版） -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js" type="module"></script>
+
   <script type="module">
-    import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
-    import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
+    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
 
@@ -47,7 +51,6 @@
     });
 
     function init() {
-      // UIイベント登録
       document.getElementById('placeBtn').addEventListener('click', () => {
         const w = parseFloat(document.getElementById('width').value) / 100;
         const d = parseFloat(document.getElementById('depth').value) / 100;
@@ -55,36 +58,29 @@
         placeBox(w, h, d);
       });
 
-      // シーンとカメラ
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-      // レンダラー
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // ARボタン追加
       document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-      // ライト
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // アニメーションループ
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
 
-      window.addEventListener('resize', onWindowResize);
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
     }
 
     function placeBox(width, height, depth) {
