@@ -2,8 +2,108 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック表示</title>
+  <title>AR家具ブロック 十字キー移動対応</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module">
+    import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
+    import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
+
+    let camera, scene, renderer, cube;
+    let hitTestSource = null;
+    let localSpace = null;
+    let xrSession = null;
+
+    init();
+
+    function init() {
+      // UIイベント登録
+      document.getElementById('placeBtn').addEventListener('click', () => {
+        const w = parseFloat(document.getElementById('width').value) / 100;
+        const d = parseFloat(document.getElementById('depth').value) / 100;
+        const h = parseFloat(document.getElementById('height').value) / 100;
+        placeBox(w, h, d);
+      });
+
+      // シーンとカメラ
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+
+      // レンダラー
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // ARボタン
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      // ライト
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
+
+      // ARセッション開始時のセットアップ
+      renderer.xr.addEventListener('sessionstart', async () => {
+        xrSession = renderer.xr.getSession();
+
+        // Hit test用ローカルスペース取得
+        localSpace = await xrSession.requestReferenceSpace('local');
+
+        // Hit testソースをリクエスト
+        const viewerSpace = await xrSession.requestReferenceSpace('viewer');
+        hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+      });
+
+      // セッション終了時にリセット
+      renderer.xr.addEventListener('sessionend', () => {
+        hitTestSource = null;
+        localSpace = null;
+        xrSession = null;
+      });
+
+      // アニメーションループ
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+
+      setupMoveButtons();
+    }
+
+    // 家具ブロックを設置
+    function placeBox(width, height, depth) {
+      if (cube) scene.remove(cube);
+      const geometry = new THREE.BoxGeometry(width, height, depth);
+      const material = new THREE.MeshPhongMaterial({ color: 0x44aa88, opacity: 0.6, transparent: true });
+      cube = new THREE.Mesh(geometry, material);
+      cube.position.set(0, height / 2, -1); // 床上に配置（Zはカメラ前方約1m）
+      scene.add(cube);
+    }
+
+    // 移動用ボタン設定
+    function setupMoveButtons() {
+      const moveStep = 0.05; // 5cmずつ
+
+      document.getElementById('upBtn').addEventListener('click', () => {
+        if (cube) cube.position.y += moveStep;
+      });
+      document.getElementById('downBtn').addEventListener('click', () => {
+        if (cube) cube.position.y = Math.max(0, cube.position.y - moveStep);
+      });
+      document.getElementById('leftBtn').addEventListener('click', () => {
+        if (cube) cube.position.x -= moveStep;
+      });
+      document.getElementById('rightBtn').addEventListener('click', () => {
+        if (cube) cube.position.x += moveStep;
+      });
+      document.getElementById('forwardBtn').addEventListener('click', () => {
+        if (cube) cube.position.z -= moveStep;
+      });
+      document.getElementById('backwardBtn').addEventListener('click', () => {
+        if (cube) cube.position.z += moveStep;
+      });
+    }
+  </script>
+
   <style>
     body {
       margin: 0;
@@ -26,6 +126,34 @@
     input {
       width: 100px;
     }
+
+    #moveControls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 280px;
+    }
+    #moveControls button {
+      font-size: 18px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      background-color: #f0f0f0;
+      user-select: none;
+    }
+    #moveControls button:active {
+      background-color: #ddd;
+    }
   </style>
 </head>
 <body>
@@ -36,96 +164,13 @@
     <button id="placeBtn">表示</button>
   </div>
 
-  <!-- Three.js本体 -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-
-  <!-- ARButton（モジュールでimport） -->
-  <script type="module">
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
-
-    let camera, scene, renderer, cube;
-    let hitTestSource = null;
-    let localSpace = null;
-
-    init();
-
-    function init() {
-      document.getElementById('placeBtn').addEventListener('click', () => {
-        const w = parseFloat(document.getElementById('width').value) / 100;
-        const d = parseFloat(document.getElementById('depth').value) / 100;
-        const h = parseFloat(document.getElementById('height').value) / 100;
-        placeBox(w, h, d);
-      });
-
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
-
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      light.position.set(0.5, 1, 0.25);
-      scene.add(light);
-
-      // セッション開始時にヒットテスト用の参照空間とソースを取得
-      renderer.xr.addEventListener('sessionstart', async () => {
-        const session = renderer.xr.getSession();
-        const viewerSpace = await session.requestReferenceSpace('viewer');
-        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-        localSpace = await session.requestReferenceSpace('local');
-      });
-
-      // タップで移動処理
-renderer.xr.addEventListener('select', () => {
-  const frame = renderer.xr.getFrame();
-  if (!hitTestSource || !frame || !cube) return;
-
-  const hitTestResults = frame.getHitTestResults(hitTestSource);
-  if (hitTestResults.length > 0) {
-    const hit = hitTestResults[0];
-    const pose = hit.getPose(localSpace);
-    if (pose) {
-      const yOffset = cube.geometry.parameters.height / 2;
-      cube.position.set(
-        pose.transform.position.x,
-        pose.transform.position.y + yOffset,
-        pose.transform.position.z
-      );
-    }
-  }
-});
-
-
-      // アニメーションループ
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
-
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-    }
-
-    function placeBox(width, height, depth) {
-      if (cube) scene.remove(cube);
-
-      const geometry = new THREE.BoxGeometry(width, height, depth);
-      const material = new THREE.MeshPhongMaterial({
-        color: 0x44aa88,
-        opacity: 0.6,
-        transparent: true
-      });
-
-      cube = new THREE.Mesh(geometry, material);
-      cube.position.set(0, height / 2, -1); // 初期位置（前方1m）
-      scene.add(cube);
-    }
-  </script>
+  <div id="moveControls">
+    <button id="upBtn">↑</button>
+    <button id="downBtn">↓</button>
+    <button id="leftBtn">←</button>
+    <button id="rightBtn">→</button>
+    <button id="forwardBtn">前</button>
+    <button id="backwardBtn">後</button>
+  </div>
 </body>
 </html>
