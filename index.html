@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック表示</title>
+  <title>AR家具ブロック表示（モバイルドラッグ対応）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -10,42 +10,21 @@
       overflow: hidden;
       font-family: sans-serif;
     }
-#ui {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px;
-  border-radius: 8px;
-  z-index: 1000;  /* ここを上げる */
-}
-
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+    }
     label, input {
       display: block;
       margin-bottom: 5px;
     }
     input {
       width: 100px;
-    }
-    #controls {
-      margin-top: 10px;
-      user-select: none;
-    }
-    #controls button {
-      width: 40px;
-      height: 40px;
-      margin: 2px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #move-row {
-      display: flex;
-      justify-content: center;
-    }
-    #rotate-row {
-      display: flex;
-      justify-content: center;
-      margin-top: 5px;
     }
   </style>
 </head>
@@ -55,25 +34,6 @@
     <label>奥行 (cm): <input type="number" id="depth" value="60" /></label>
     <label>高さ (cm): <input type="number" id="height" value="70" /></label>
     <button id="placeBtn">表示</button>
-
-    <div id="controls">
-      <div id="move-row">
-        <button id="move-up">↑</button>
-      </div>
-      <div id="move-row">
-        <button id="move-left">←</button>
-        <button id="move-down">↓</button>
-        <button id="move-right">→</button>
-      </div>
-      <div id="move-row">
-        <button id="move-forward">前</button>
-        <button id="move-back">後</button>
-      </div>
-      <div id="rotate-row">
-        <button id="rotate-x-pos">⟳X+</button>
-        <button id="rotate-x-neg">⟲X-</button>
-      </div>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
@@ -81,9 +41,10 @@
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
-    const moveStep = 0.05;
-    const rotateStep = THREE.MathUtils.degToRad(5);
-    let xrSession = null; // ARセッション状態
+    let raycaster = new THREE.Raycaster();
+    let dragOffset = new THREE.Vector3();
+    let isDragging = false;
+    let dragTouchId = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
@@ -100,39 +61,22 @@
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.xr.enabled = true;
-renderer.domElement.style.pointerEvents = 'auto';  // UI操作したいならautoのまま
-document.body.appendChild(renderer.domElement);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
 
-
-      const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
-      document.body.appendChild(arButton);
-
-      arButton.addEventListener('click', () => {
-        // ARButtonのクリックでセッションが開始されるのでここにフックもできますが、WebXR APIでセッション開始を監視したほうが確実
-      });
-
-      renderer.xr.addEventListener('sessionstart', () => {
-        console.log('AR session started');
-        xrSession = renderer.xr.getSession();
-        // ARセッション開始時にキューブがなければ自動生成（幅100cm/高さ70cm/奥行60cm）
-        if (!cube) placeBox(1.0, 0.7, 0.6);
-      });
-
-      renderer.xr.addEventListener('sessionend', () => {
-        console.log('AR session ended');
-        xrSession = null;
-      });
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
+      // タッチイベントを登録（WebXRセッション中でも動作）
+      renderer.domElement.addEventListener('touchstart', onTouchStart, false);
+      renderer.domElement.addEventListener('touchmove', onTouchMove, false);
+      renderer.domElement.addEventListener('touchend', onTouchEnd, false);
+      renderer.domElement.addEventListener('touchcancel', onTouchEnd, false);
 
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -140,15 +84,9 @@ document.body.appendChild(renderer.domElement);
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
-      // 移動・回転ボタンイベント登録
-      document.getElementById('move-up').addEventListener('click', () => moveCube('up'));
-      document.getElementById('move-down').addEventListener('click', () => moveCube('down'));
-      document.getElementById('move-left').addEventListener('click', () => moveCube('left'));
-      document.getElementById('move-right').addEventListener('click', () => moveCube('right'));
-      document.getElementById('move-forward').addEventListener('click', () => moveCube('forward'));
-      document.getElementById('move-back').addEventListener('click', () => moveCube('back'));
-      document.getElementById('rotate-x-pos').addEventListener('click', () => rotateCube('x+'));
-      document.getElementById('rotate-x-neg').addEventListener('click', () => rotateCube('x-'));
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
     }
 
     function placeBox(width, height, depth) {
@@ -161,43 +99,69 @@ document.body.appendChild(renderer.domElement);
       scene.add(cube);
     }
 
-    function moveCube(direction) {
-      if (!cube) return;
-      if (!xrSession) {
-        alert('ARセッション中のみ操作可能です');
-        return;
-      }
+    function getTouchPositionInThree(touch) {
+      // タッチ位置をNDCに変換
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      return new THREE.Vector2(x, y);
+    }
 
-      switch (direction) {
-        case 'up':
-          cube.position.y += moveStep;
+    function onTouchStart(event) {
+      if (!cube) return;
+
+      for (let i = 0; i < event.changedTouches.length; i++) {
+        const touch = event.changedTouches[i];
+        const pos = getTouchPositionInThree(touch);
+
+        raycaster.setFromCamera(pos, camera);
+        const intersects = raycaster.intersectObject(cube);
+
+        if (intersects.length > 0) {
+          isDragging = true;
+          dragTouchId = touch.identifier;
+
+          // ドラッグ開始時の差分オフセットを計算
+          const intersectPoint = intersects[0].point;
+          dragOffset.copy(intersectPoint).sub(cube.position);
           break;
-        case 'down':
-          if (cube.position.y - moveStep > 0) cube.position.y -= moveStep;
-          break;
-        case 'left':
-          cube.position.x -= moveStep;
-          break;
-        case 'right':
-          cube.position.x += moveStep;
-          break;
-        case 'forward':
-          cube.position.z -= moveStep;
-          break;
-        case 'back':
-          cube.position.z += moveStep;
-          break;
+        }
       }
     }
 
-    function rotateCube(axis) {
-      if (!cube) return;
-      if (!xrSession) {
-        alert('ARセッション中のみ操作可能です');
-        return;
+    function onTouchMove(event) {
+      if (!isDragging) return;
+
+      for (let i = 0; i < event.changedTouches.length; i++) {
+        const touch = event.changedTouches[i];
+        if (touch.identifier !== dragTouchId) continue;
+
+        const pos = getTouchPositionInThree(touch);
+        raycaster.setFromCamera(pos, camera);
+
+        // 平面Y=キューブの高さで位置を計算して移動させる方法の一例
+        // レイと平面の交差点を計算
+        const planeY = cube.position.y;
+        const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), planeY);
+        const intersectPoint = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersectPoint);
+
+        if (intersectPoint) {
+          cube.position.copy(intersectPoint.sub(dragOffset));
+        }
+
+        break;
       }
-      if (axis === 'x+') cube.rotation.x += rotateStep;
-      else if (axis === 'x-') cube.rotation.x -= rotateStep;
+    }
+
+    function onTouchEnd(event) {
+      for (let i = 0; i < event.changedTouches.length; i++) {
+        const touch = event.changedTouches[i];
+        if (touch.identifier === dragTouchId) {
+          isDragging = false;
+          dragTouchId = null;
+          break;
+        }
+      }
     }
   </script>
 </body>
