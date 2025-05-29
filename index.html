@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>AR家具ブロック表示</title>
+  <title>AR家具ブロック表示 キーボード操作付き</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -37,9 +37,9 @@
     <p>操作: 矢印キー（左右上下）= XY移動, W/S = 前後移動, Q/E = 回転</p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
   <script type="module">
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/webxr/ARButton.js';
+    import * as THREE from 'https://cdn.skypack.dev/three@0.153.0';
+    import { ARButton } from 'https://cdn.skypack.dev/three/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer, cube;
 
@@ -48,13 +48,6 @@
     });
 
     function init() {
-      document.getElementById('placeBtn').addEventListener('click', () => {
-        const w = parseFloat(document.getElementById('width').value) / 100;
-        const d = parseFloat(document.getElementById('depth').value) / 100;
-        const h = parseFloat(document.getElementById('height').value) / 100;
-        placeBox(w, h, d);
-      });
-
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
@@ -69,8 +62,11 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
+      document.getElementById('placeBtn').addEventListener('click', () => {
+        const w = parseFloat(document.getElementById('width').value) / 100;
+        const d = parseFloat(document.getElementById('depth').value) / 100;
+        const h = parseFloat(document.getElementById('height').value) / 100;
+        placeBox(w, h, d);
       });
 
       window.addEventListener('resize', () => {
@@ -79,43 +75,27 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
-      // キーボードでの操作
+      // キーボード操作
       window.addEventListener('keydown', (event) => {
-        if (!cube) return; // キューブがなければ無視
+        if (!cube) return;
 
-        const step = 0.05; // 移動量(m)
-        const rotStep = THREE.MathUtils.degToRad(5); // 回転量(ラジアン)
+        const step = 0.05;
+        const rotStep = THREE.MathUtils.degToRad(5);
 
-        switch(event.key) {
-          case 'ArrowUp':
-            cube.position.y += step; // 上
-            break;
-          case 'ArrowDown':
-            cube.position.y -= step; // 下
-            break;
-          case 'ArrowLeft':
-            cube.position.x -= step; // 左
-            break;
-          case 'ArrowRight':
-            cube.position.x += step; // 右
-            break;
-          case 'w':
-          case 'W':
-            cube.position.z -= step; // 手前に移動
-            break;
-          case 's':
-          case 'S':
-            cube.position.z += step; // 奥に移動
-            break;
-          case 'q':
-          case 'Q':
-            cube.rotation.y += rotStep; // 左回転
-            break;
-          case 'e':
-          case 'E':
-            cube.rotation.y -= rotStep; // 右回転
-            break;
+        switch (event.key) {
+          case 'ArrowUp': cube.position.y += step; break;
+          case 'ArrowDown': cube.position.y -= step; break;
+          case 'ArrowLeft': cube.position.x -= step; break;
+          case 'ArrowRight': cube.position.x += step; break;
+          case 'w': case 'W': cube.position.z -= step; break;
+          case 's': case 'S': cube.position.z += step; break;
+          case 'q': case 'Q': cube.rotation.y += rotStep; break;
+          case 'e': case 'E': cube.rotation.y -= rotStep; break;
         }
+      });
+
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
       });
     }
 
